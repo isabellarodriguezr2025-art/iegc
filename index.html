@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Picnic de Medianoche de Pim</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carga de Tone.js para el audio de suspenso -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        /* Estilos personalizados para el juego */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7; /* Fondo neutro claro */
+        }
+        .cute-container {
+            background-color: #fff0f5; /* Rosa muy claro, base tierna */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .cute-button {
+            transition: all 0.1s ease-in-out;
+            box-shadow: 0 4px #e9a9b2; /* Sombra sutil rosa oscuro */
+            user-select: none;
+        }
+        .cute-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px #e9a9b2;
+        }
+        .cute-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px #e9a9b2;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Contenedor Principal del Juego -->
+    <div id="game-container" class="cute-container w-full max-w-lg rounded-3xl p-6 md:p-10 border-4 border-pink-300">
+        <h1 class="text-3xl font-bold text-pink-600 mb-4 text-center" id="game-title">El Picnic de Medianoche de Pim</h1>
+        
+        <!-- Área de la Imagen/Escena (Mock-up) -->
+        <div id="scene-image" class="w-full h-40 bg-sky-200 rounded-xl mb-6 flex items-center justify-center border-2 border-sky-400">
+            <span class="text-xl text-sky-700 font-semibold" id="scene-label">Dormitorio de Pim</span>
+        </div>
+
+        <!-- Área de Narrativa -->
+        <p id="story-text" class="text-lg text-gray-700 mb-8 leading-relaxed">
+            Presiona "Comenzar Aventura" para empezar el tierno (y quizás inquietante) picnic de Pim.
+        </p>
+
+        <!-- Área de Acciones/Botones -->
+        <div id="actions-container" class="space-y-4">
+            <button id="start-button" onclick="startGame()" class="w-full p-3 cute-button bg-pink-400 text-white font-bold rounded-xl hover:bg-pink-500">
+                Comenzar Aventura
+            </button>
+        </div>
+
+        <!-- Contenedor para mensajes del sistema (No usar alert) -->
+        <div id="message-box" class="mt-6 p-3 text-sm text-center bg-yellow-100 text-yellow-800 rounded-lg hidden"></div>
+        
+    </div>
+
+    <script type="module">
+        // --- INICIALIZACIÓN DE FIREBASE (BOILERPLATE OBLIGATORIO) ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        setLogLevel('Debug');
+
+        let app;
+        let db;
+        let auth;
+        let userId = 'anon';
+
+        // Variables globales del entorno Canvas (MANDATORIO USAR)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        if (firebaseConfig) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Intentar autenticación
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    console.log("Usuario autenticado:", userId);
+                } else {
+                    // Si no hay usuario, intentar iniciar sesión anónimamente
+                    (async () => {
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Error de autenticación:", error);
+                        }
+                    })();
+                }
+            });
+        }
+        // --- FIN DE BOILERPLATE DE FIREBASE ---
+        
+        // El resto del script se ejecuta normalmente, usando funciones globales.
+    </script>
+
+    <script>
+        // --- LÓGICA DEL JUEGO ---
+
+        const storyText = document.getElementById('story-text');
+        const actionsContainer = document.getElementById('actions-container');
+        const sceneLabel = document.getElementById('scene-label');
+        const sceneImage = document.getElementById('scene-image');
+        const messageBox = document.getElementById('message-box');
+
+        let currentStep = 0;
+
+        // --- Configuración de Audio (Tone.js) ---
+
+        // 1. Sintetizador para un Hum Ambiguo (Suspenso)
+        const ambience = new Tone.NoiseSynth({
+            noise: { type: 'pink' },
+            envelope: {
+                attack: 1,
+                decay: 4,
+                sustain: 0.5,
+                release: 10
+            }
+        }).toDestination();
+        ambience.volume.value = -30; // Muy bajo
+
+        // 2. Sintetizador para un Glitch/Ping de Tensión
+        const glitchSynth = new Tone.MembraneSynth({
+            pitchDecay: 0.05,
+            octaves: 8,
+            envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.1 },
+            oscillator: { type: 'square' }
+        }).toDestination();
+
+        // 3. Función para reproducir el efecto de tensión
+        function playGlitch() {
+            // Asegúrate de que el contexto de audio esté activo (requerido por Tone.js/navegadores)
+            Tone.start();
+            glitchSynth.triggerAttackRelease("C1", "16n");
+        }
+
+        // --- Definición de Escenas ---
+
+        const scenes = [
+            {
+                // Paso 0: Inicio
+                text: "Pim, la adorable conejita, acaba de despertar. La luna brilla suavemente por la ventana rosa de su dormitorio. Tiene un deseo incontrolable de galletas.",
+                scene: "Dormitorio de Pim",
+                color: 'bg-sky-200',
+                actions: [
+                    { label: "Ir a la Cocina", nextStep: 1, effect: () => { Tone.start(); ambience.start(); } },
+                    { label: "Volver a Dormir", nextStep: 99, effect: () => {} }
+                ]
+            },
+            {
+                // Paso 1: Camino a la Cocina
+                text: "El pasillo está decorado con guirnaldas de estrellas, todo muy tierno. Pim se dirige a la cocina, pero nota que la puerta de entrada (que siempre cierra) está un poco abierta. ¡Solo un poco!",
+                scene: "Pasillo Estrellado",
+                color: 'bg-indigo-200',
+                actions: [
+                    { label: "Ignorar y Seguir", nextStep: 2 },
+                    { label: "Mirar la Puerta Abierta", nextStep: 10 }
+                ]
+            },
+            {
+                // Paso 2: La Cocina y las Galletas
+                text: "La cocina es verde menta, con un ambientador de vainilla. Hay un plato de galletas con chispas de chocolate sobre el mostrador. ¡Perfecto! Pim cuenta cuatro galletas.",
+                scene: "Cocina Menta",
+                color: 'bg-emerald-200',
+                actions: [
+                    { label: "Tomar una Galleta", nextStep: 3, effect: playGlitch },
+                    { label: "Comprobar la Nevera (¿Por qué?)", nextStep: 4 }
+                ]
+            },
+            {
+                // Paso 3: El Misterio de la Galleta (Tensión)
+                text: "Pim tomó una galleta. Al revisar el plato, ¡solo quedan *dos*! El plato es pequeño. Pim juraría que eran cuatro, pero ahora hay una en su mano y dos en el plato. ¿Contó mal?",
+                scene: "Plato de Galletas",
+                color: 'bg-red-200', // Un color más inquietante
+                actions: [
+                    { label: "Mirar Debajo del Plato", nextStep: 5 },
+                    { label: "Comer la Galleta", nextStep: 98 }
+                ]
+            },
+            {
+                // Paso 4: La Nevera
+                text: "Pim abre la nevera. Adentro hay jugo de naranja y un pequeño espejo. En el espejo, Pim ve su reflejo, pero también nota algo oscuro y muy alto en la esquina... ¿o es solo la luz?",
+                scene: "Interior de la Nevera",
+                color: 'bg-slate-300',
+                actions: [
+                    { label: "Cerrar la Nevera y Volver", nextStep: 2 }
+                ]
+            },
+            {
+                // Paso 5: FINAL DE SUSPENSO (Climax)
+                text: "Pim levanta con cuidado el plato de galletas. Debajo, encuentra una pequeña nota doblada, escrita con una tinta negra y desordenada. Dice: 'Estaban deliciosas. Nos vemos pronto, conejita. Y sí, había cuatro.'",
+                scene: "FINAL: Nota",
+                color: 'bg-pink-800', // Color oscuro para el final
+                actions: [
+                    { label: "Reiniciar Juego", nextStep: -1 }
+                ]
+            },
+            {
+                // Paso 10: Mirar la Puerta (Punto de Suspenso Alternativo)
+                text: "Pim se acerca y toca la puerta. Está temblando. Mientras la empuja para cerrarla, ve un ojo blanco gigante mirándola a través de la rendija, antes de que el ojo parpadee y desaparezca. La puerta se cierra con un 'clic' suave. El ojo estaba *mucho* más alto que Pim.",
+                scene: "Puerta de la Entrada",
+                color: 'bg-purple-300',
+                actions: [
+                    { label: "Correr a la Cocina", nextStep: 2 }
+                ]
+            },
+
+            // --- FINALES ---
+            {
+                // FINAL 98: Final Aburrido
+                text: "Pim decidió que una galleta es una galleta. Se la comió, ignorando el misterio. Fue a la cama y durmió profundamente. Un final tierno, pero... ¿algo más se fue a dormir en su casa?",
+                scene: "FINAL: Sueño",
+                color: 'bg-green-300',
+                actions: [
+                    { label: "Reiniciar Juego", nextStep: -1 }
+                ]
+            },
+            {
+                // FINAL 99: Nunca Empezó
+                text: "Pim se dio la vuelta y se durmió de nuevo, olvidando las galletas. Nunca sabrá lo que estaba esperando en el pasillo. Un final seguro y cálido.",
+                scene: "FINAL: Paz",
+                color: 'bg-yellow-300',
+                actions: [
+                    { label: "Reiniciar Juego", nextStep: -1 }
+                ]
+            },
+        ];
+
+        function showMessage(text, isError = false) {
+            messageBox.textContent = text;
+            messageBox.className = `mt-6 p-3 text-sm text-center rounded-lg ${isError ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        function updateScene() {
+            if (currentStep < 0) {
+                window.location.reload(); // Reiniciar el juego
+                return;
+            }
+
+            const scene = scenes[currentStep];
+            
+            // Actualizar la narrativa
+            storyText.innerHTML = scene.text.replace(/Pim/g, `<span class="font-bold text-pink-500">Pim</span>`);
+            
+            // Actualizar la escena visual
+            sceneLabel.textContent = scene.scene;
+            // Eliminar clases de color anteriores y añadir la nueva
+            sceneImage.className = 'w-full h-40 rounded-xl mb-6 flex items-center justify-center border-2 border-sky-400 transition-colors duration-500 ' + scene.color;
+
+            // Actualizar las acciones (botones)
+            actionsContainer.innerHTML = '';
+            scene.actions.forEach(action => {
+                const button = document.createElement('button');
+                button.textContent = action.label;
+                button.className = 'w-full p-3 cute-button bg-pink-400 text-white font-bold rounded-xl hover:bg-pink-500';
+                button.onclick = () => handleAction(action);
+                actionsContainer.appendChild(button);
+            });
+
+            // Ocultar mensaje de error
+            messageBox.classList.add('hidden');
+        }
+
+        function handleAction(action) {
+            // Ejecutar cualquier efecto de audio o visual
+            if (action.effect) {
+                action.effect();
+            }
+            
+            // Cambiar al siguiente paso de la historia
+            currentStep = action.nextStep;
+            
+            // Si es un final, detener el audio de ambiente
+            if (currentStep >= 98 || currentStep < 0) {
+                ambience.stop();
+            }
+
+            updateScene();
+        }
+
+        window.startGame = function() {
+            // Asegurarse de que el contexto de audio se inicie con la interacción del usuario
+            Tone.start();
+            
+            // Ocultar el botón de inicio
+            document.getElementById('start-button').remove(); 
+            
+            // Mostrar la primera escena (Paso 0)
+            currentStep = 0;
+            updateScene();
+        }
+    </script>
+</body>
+</html>
