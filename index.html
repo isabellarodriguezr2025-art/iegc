@@ -1,26 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El Picnic de Medianoche de Pim</title>
-    <!-- Carga de Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carga de Tone.js para el audio de suspenso -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <style>
-        /* Estilos personalizados para el juego */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f7f7; /* Fondo neutro claro */
-        }
-        .cute-container {
-            background-color: #fff0f5; /* Rosa muy claro, base tierna */
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-        .cute-button {
-            transition: all 0.1s ease-in-out;
+ase-in-out;
             box-shadow: 0 4px #e9a9b2; /* Sombra sutil rosa oscuro */
             user-select: none;
         }
@@ -151,21 +129,21 @@
             glitchSynth.triggerAttackRelease("C1", "16n");
         }
 
-        // --- Definición de Escenas ---
+        // --- Definición de Escenas (Cambiado de Array a Objeto Mapa para usar IDs no secuenciales) ---
 
-        const scenes = [
-            {
-                // Paso 0: Inicio
+        const scenes = {
+            // Paso 0: Inicio
+            0: {
                 text: "Pim, la adorable conejita, acaba de despertar. La luna brilla suavemente por la ventana rosa de su dormitorio. Tiene un deseo incontrolable de galletas.",
                 scene: "Dormitorio de Pim",
                 color: 'bg-sky-200',
                 actions: [
-                    { label: "Ir a la Cocina", nextStep: 1, effect: () => { Tone.start(); ambience.start(); } },
+                    { label: "Ir a la Cocina", nextStep: 1, effect: () => { Tone.start(); ambience.triggerAttack(); } },
                     { label: "Volver a Dormir", nextStep: 99, effect: () => {} }
                 ]
             },
-            {
-                // Paso 1: Camino a la Cocina
+            // Paso 1: Camino a la Cocina
+            1: {
                 text: "El pasillo está decorado con guirnaldas de estrellas, todo muy tierno. Pim se dirige a la cocina, pero nota que la puerta de entrada (que siempre cierra) está un poco abierta. ¡Solo un poco!",
                 scene: "Pasillo Estrellado",
                 color: 'bg-indigo-200',
@@ -174,8 +152,8 @@
                     { label: "Mirar la Puerta Abierta", nextStep: 10 }
                 ]
             },
-            {
-                // Paso 2: La Cocina y las Galletas
+            // Paso 2: La Cocina y las Galletas
+            2: {
                 text: "La cocina es verde menta, con un ambientador de vainilla. Hay un plato de galletas con chispas de chocolate sobre el mostrador. ¡Perfecto! Pim cuenta cuatro galletas.",
                 scene: "Cocina Menta",
                 color: 'bg-emerald-200',
@@ -184,8 +162,8 @@
                     { label: "Comprobar la Nevera (¿Por qué?)", nextStep: 4 }
                 ]
             },
-            {
-                // Paso 3: El Misterio de la Galleta (Tensión)
+            // Paso 3: El Misterio de la Galleta (Tensión)
+            3: {
                 text: "Pim tomó una galleta. Al revisar el plato, ¡solo quedan *dos*! El plato es pequeño. Pim juraría que eran cuatro, pero ahora hay una en su mano y dos en el plato. ¿Contó mal?",
                 scene: "Plato de Galletas",
                 color: 'bg-red-200', // Un color más inquietante
@@ -194,8 +172,8 @@
                     { label: "Comer la Galleta", nextStep: 98 }
                 ]
             },
-            {
-                // Paso 4: La Nevera
+            // Paso 4: La Nevera
+            4: {
                 text: "Pim abre la nevera. Adentro hay jugo de naranja y un pequeño espejo. En el espejo, Pim ve su reflejo, pero también nota algo oscuro y muy alto en la esquina... ¿o es solo la luz?",
                 scene: "Interior de la Nevera",
                 color: 'bg-slate-300',
@@ -203,8 +181,8 @@
                     { label: "Cerrar la Nevera y Volver", nextStep: 2 }
                 ]
             },
-            {
-                // Paso 5: FINAL DE SUSPENSO (Climax)
+            // Paso 5: FINAL DE SUSPENSO (Climax)
+            5: {
                 text: "Pim levanta con cuidado el plato de galletas. Debajo, encuentra una pequeña nota doblada, escrita con una tinta negra y desordenada. Dice: 'Estaban deliciosas. Nos vemos pronto, conejita. Y sí, había cuatro.'",
                 scene: "FINAL: Nota",
                 color: 'bg-pink-800', // Color oscuro para el final
@@ -212,8 +190,8 @@
                     { label: "Reiniciar Juego", nextStep: -1 }
                 ]
             },
-            {
-                // Paso 10: Mirar la Puerta (Punto de Suspenso Alternativo)
+            // Paso 10: Mirar la Puerta (Punto de Suspenso Alternativo)
+            10: {
                 text: "Pim se acerca y toca la puerta. Está temblando. Mientras la empuja para cerrarla, ve un ojo blanco gigante mirándola a través de la rendija, antes de que el ojo parpadee y desaparezca. La puerta se cierra con un 'clic' suave. El ojo estaba *mucho* más alto que Pim.",
                 scene: "Puerta de la Entrada",
                 color: 'bg-purple-300',
@@ -223,8 +201,8 @@
             },
 
             // --- FINALES ---
-            {
-                // FINAL 98: Final Aburrido
+            // FINAL 98: Final Aburrido
+            98: {
                 text: "Pim decidió que una galleta es una galleta. Se la comió, ignorando el misterio. Fue a la cama y durmió profundamente. Un final tierno, pero... ¿algo más se fue a dormir en su casa?",
                 scene: "FINAL: Sueño",
                 color: 'bg-green-300',
@@ -232,8 +210,8 @@
                     { label: "Reiniciar Juego", nextStep: -1 }
                 ]
             },
-            {
-                // FINAL 99: Nunca Empezó
+            // FINAL 99: Nunca Empezó
+            99: {
                 text: "Pim se dio la vuelta y se durmió de nuevo, olvidando las galletas. Nunca sabrá lo que estaba esperando en el pasillo. Un final seguro y cálido.",
                 scene: "FINAL: Paz",
                 color: 'bg-yellow-300',
@@ -241,7 +219,7 @@
                     { label: "Reiniciar Juego", nextStep: -1 }
                 ]
             },
-        ];
+        };
 
         function showMessage(text, isError = false) {
             messageBox.textContent = text;
@@ -257,6 +235,13 @@
 
             const scene = scenes[currentStep];
             
+            // FIX: Añadimos una comprobación explícita si la escena no existe antes de acceder a sus propiedades
+            if (!scene) {
+                console.error("Error: Escena no encontrada para el paso:", currentStep);
+                showMessage("¡Error de navegación en la historia! Por favor, reinicia el juego.", true);
+                return;
+            }
+
             // Actualizar la narrativa
             storyText.innerHTML = scene.text.replace(/Pim/g, `<span class="font-bold text-pink-500">Pim</span>`);
             
@@ -290,7 +275,7 @@
             
             // Si es un final, detener el audio de ambiente
             if (currentStep >= 98 || currentStep < 0) {
-                ambience.stop();
+                ambience.triggerRelease();
             }
 
             updateScene();
